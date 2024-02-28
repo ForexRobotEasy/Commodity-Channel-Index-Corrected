@@ -1,0 +1,127 @@
+mql5
+//+------------------------------------------------------------------+
+//|                    Commodity Channel Index Corrected              |
+//|                                                                  |
+//|                    Developer's Site: forexroboteasy.com           |
+//|                    Developer: Forex Robot Easy Team               |
+//+------------------------------------------------------------------+
+
+//+------------------------------------------------------------------+
+//|                      Global Variables                             |
+//+------------------------------------------------------------------+
+double cciCBuffer[]; // Buffer to store CCI-C values
+int period = 14; // Default period for CCI-C calculation
+
+//+------------------------------------------------------------------+
+//|                      Initialization                              |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+   // Initialize the CCI-C buffer
+   ArrayResize(cciCBuffer, Bars - period);
+   
+   // Set the indicator label
+   IndicatorSetString(INDICATOR_SHORTNAME, 'CCI-C');
+   
+   // Set the period for CCI-C calculation
+   SetCCIPeriod(period);
+   
+   return INIT_SUCCEEDED;
+}
+
+//+------------------------------------------------------------------+
+//|                      Deinitialization                            |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+   // Clear the CCI-C buffer
+   ArrayInitialize(cciCBuffer, 0);
+}
+
+//+------------------------------------------------------------------+
+//|                      CCI-C Calculation                           |
+//+------------------------------------------------------------------+
+void OnCalculate(const int rates_total,
+                 const int prev_calculated,
+                 const datetime &time[],
+                 const double &open[],
+                 const double &high[],
+                 const double &low[],
+                 const double &close[],
+                 const long &tick_volume[],
+                 const long &volume[],
+                 const int &spread[])
+{
+   int limit = rates_total - prev_calculated;
+   
+   // Calculate CCI-C values for each bar
+   for (int i = 0; i < limit; i++)
+   {
+      double typicalPrice = (high[i] + low[i] + close[i]) / 3;
+      double sma = SimpleMovingAverage(typicalPrice, period);
+      double meanDeviation = MeanDeviation(typicalPrice, period);
+      
+      if (meanDeviation == 0)
+      {
+         // Handle division by zero error
+         cciCBuffer[i] = 0;
+         continue;
+      }
+      
+      cciCBuffer[i] = (typicalPrice - sma) / meanDeviation;
+   }
+   
+   // Draw the CCI-C values on the chart
+   for (int i = limit; i >= 0; i--)
+   {
+      if (i == 0)
+      {
+         // Draw a line connecting the current bar with the last calculated CCI-C value
+         IndicatorBufferSet(0, i, cciCBuffer[i]);
+      }
+      else
+      {
+         // Draw a line connecting the current bar with the previous bar's CCI-C value
+         IndicatorBufferSet(0, i, cciCBuffer[i - 1]);
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//|                      Set CCI-C Period                            |
+//+------------------------------------------------------------------+
+void SetCCIPeriod(int newPeriod)
+{
+   period = newPeriod;
+   IndicatorSetInteger(INDICATOR_DIGITS, period);
+}
+
+//+------------------------------------------------------------------+
+//|                      Simple Moving Average                        |
+//+------------------------------------------------------------------+
+double SimpleMovingAverage(const double &price, const int period)
+{
+   double sum = 0;
+   
+   for (int i = 0; i < period; i++)
+   {
+      sum += price;
+   }
+   
+   return sum / period;
+}
+
+//+------------------------------------------------------------------+
+//|                      Mean Deviation                               |
+//+------------------------------------------------------------------+
+double MeanDeviation(const double &price, const int period)
+{
+   double sum = 0;
+   
+   for (int i = 0; i < period; i++)
+   {
+      sum += MathAbs(price - SimpleMovingAverage(price, period));
+   }
+   
+   return sum / period;
+}
